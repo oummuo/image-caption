@@ -1,0 +1,98 @@
+from tensorflow import keras
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+import cv2
+import pandas as pd
+import string
+from glob import glob
+from tensorflow.keras.layers import Dense, Input, Conv2D, Flatten, MaxPooling2D, Dropout
+from tensorflow.keras.models import Model
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.optimizers import Adam
+from keras.callbacks import ModelCheckpoint
+
+from google.colab import drive
+drive.mount('/content/drive')
+
+!cp /content/drive/My\ Drive/Colab\ Notebooks/project_Image/act_image.zip .
+
+!unzip act_image.zip
+
+batch_size = 16
+num_classes = 4
+target_size = 299
+dense_size = 100
+
+datagen_train = ImageDataGenerator(
+  rescale=1./255
+)
+
+datagen_test = ImageDataGenerator(
+  rescale=1./255
+)
+
+train_set = datagen_train.flow_from_directory(
+  './act_image/train',
+   target_size=(target_size,target_size),
+  batch_size=batch_size,class_mode ='categorical'
+)
+
+test_set = datagen_train.flow_from_directory(
+  './act_image/test',
+  target_size=(target_size,target_size),
+  batch_size=batch_size,class_mode ='categorical'
+)
+
+tensorboard = keras.callbacks.TensorBoard(log_dir='./logs')
+
+input_img = Input(shape=(target_size,target_size,3),name='input')
+x = Conv2D(32, (3, 3), padding='same', activation='relu')(input_img)
+x = MaxPooling2D((2,2))(x)
+x = Conv2D(64, (3, 3), padding='same', activation='relu')(x)
+x = MaxPooling2D((2,2))(x)
+x = Flatten()(x)
+x = Dense(dense_size, activation='relu')(x)
+x = Dropout(0.5)(x)
+out = Dense(num_classes, activation='softmax')(x)
+model = Model(input_img, out)
+model.compile(optimizer = 'rmsprop',
+                   loss = 'categorical_crossentropy', 
+                   metrics = ['accuracy'])
+model.summary()
+
+model.fit_generator(
+  train_set,
+  steps_per_epoch=100,
+  epochs=10,
+  shuffle=True,
+
+)
+
+# save model
+model.save('activity.h5')
+
+# load saved model
+from tensorflow.keras.models import load_model
+model_new = load_model('activity.h5')
+
+# try feeding an image
+from PIL import Image
+im = Image.open('/content/act_image/test/running/run (308).jpg')
+
+im_299 = im.resize((299,299))
+
+pred = model_new.predict( np.expand_dims(np.array(im_299),axis=0)    )
+
+print(pred) 
+np.argmax(pred)
+
+plt.imshow(im)
+if np.argmax(pred)==0:
+  print('Class: Climbing')
+if np.argmax(pred)==1:
+  print('Class: Jumping')
+if np.argmax(pred)==2:
+  print('Class: Running')
+if np.argmax(pred)==3:
+  print('Class: Walking')
