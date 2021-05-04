@@ -1,0 +1,29 @@
+images_path = '/content/drive/MyDrive/Colab Notebooks/project_Image/train_image/'
+images = glob(images_path+'*')
+len(images)
+
+from keras.applications import ResNet50
+incept_model = ResNet50(include_top=True)
+
+from keras.models import Model
+last = incept_model.layers[-2].output
+modele = Model(inputs = incept_model.input,outputs = last)
+modele.summary()
+
+images_features = {}
+count = 0
+for i in images:
+    img = cv2.imread(i)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.resize(img, (224,224))
+    img = img.reshape(1,224,224,3)
+    pred = modele.predict(img).reshape(2048,)    
+    img_name = i.split('/')[-1]
+    images_features[img_name] = pred
+    count += 1
+    if count > 7839:
+        break  
+    elif count % 50 == 0:
+        print(count)
+        
+len(images_features)
